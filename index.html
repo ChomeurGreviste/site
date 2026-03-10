@@ -49,7 +49,7 @@
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "API_KEY",
@@ -64,7 +64,19 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
-const stationRef = ref(database, "station_meteo");
+
+/* REFERENCES FIREBASE */
+
+const tempIntRef = ref(database, "meteo/interieur/Temp");
+const humIntRef = ref(database, "meteo/interieur/Hum");
+
+const tempExtRef = ref(database, "meteo/exterieur/Temp");
+const humExtRef = ref(database, "meteo/exterieur/Hum");
+
+const lampeRef = ref(database, "controle/lampe");
+
+
+/* ELEMENTS HTML */
 
 const tempInt = document.getElementById("temp_int");
 const tempExt = document.getElementById("temp_ext");
@@ -72,26 +84,39 @@ const humInt = document.getElementById("hum_int");
 const humExt = document.getElementById("hum_ext");
 const lampeToggle = document.getElementById("lampeToggle");
 
-onValue(stationRef, (snapshot) => {
 
-const data = snapshot.val();
+/* LECTURE DES DONNEES */
 
-if(data){
-
-tempInt.innerHTML = data.temperature_interieur + " °C";
-tempExt.innerHTML = data.temperature_exterieur + " °C";
-humInt.innerHTML = data.humidite_interieur + " %";
-humExt.innerHTML = data.humidite_exterieur + " %";
-
-lampeToggle.checked = data.lampe;
-
-}
-
+onValue(tempIntRef, (snapshot) => {
+  tempInt.innerHTML = snapshot.val() + " °C";
 });
 
-lampeToggle.addEventListener("change", () => {
+onValue(tempExtRef, (snapshot) => {
+  tempExt.innerHTML = snapshot.val() + " °C";
+});
 
-set(ref(database, "station_meteo/lampe"), lampeToggle.checked);
+onValue(humIntRef, (snapshot) => {
+  humInt.innerHTML = snapshot.val() + " %";
+});
+
+onValue(humExtRef, (snapshot) => {
+  humExt.innerHTML = snapshot.val() + " %";
+});
+
+onValue(lampeRef, (snapshot) => {
+  lampeToggle.checked = snapshot.val();
+});
+
+
+/* CONTROLE LAMPE */
+
+lampeToggle.addEventListener("change", async () => {
+
+const snapshot = await get(lampeRef);
+
+let valeurActuelle = snapshot.val();
+
+set(lampeRef, !valeurActuelle);
 
 });
 
