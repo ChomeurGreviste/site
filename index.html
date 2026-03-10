@@ -1,40 +1,101 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
-    <meta charset="UTF-8">
-    <title>Station Météo</title>
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<title>Station météo</title>
+<link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
+<div class="container">
+
 <h1>Station météo</h1>
 
-<div class="meteo">
+<div class="ligne">
+<span>Température intérieure</span>
+<div class="valeur" id="temp_int">-- °C</div>
+</div>
 
-    <div class="ligne">
-        <span>Température intérieure</span>
-        <div class="valeur">22</div>
-    </div>
+<div class="ligne">
+<span>Température extérieure</span>
+<div class="valeur" id="temp_ext">-- °C</div>
+</div>
 
-    <div class="ligne">
-        <span>Température extérieure</span>
-        <div class="valeur">18</div>
-    </div>
+<div class="ligne">
+<span>Humidité intérieure</span>
+<div class="valeur" id="hum_int">-- %</div>
+</div>
 
-    <div class="ligne">
-        <span>Humidité intérieure</span>
-        <div class="valeur">45</div>
-    </div>
+<div class="ligne">
+<span>Humidité extérieure</span>
+<div class="valeur" id="hum_ext">-- %</div>
+</div>
 
-    <div class="ligne">
-        <span>Humidité extérieure</span>
-        <div class="valeur">60</div>
-    </div>
+<div class="toggle-container">
+
+<span>Lampe</span>
+
+<label class="switch">
+<input type="checkbox" id="lampeToggle">
+<span class="slider"></span>
+</label>
 
 </div>
 
-<button class="toggle">Lampe</button>
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "API_KEY",
+  authDomain: "PROJET.firebaseapp.com",
+  databaseURL: "https://PROJET-default-rtdb.firebaseio.com",
+  projectId: "PROJET",
+  storageBucket: "PROJET.appspot.com",
+  messagingSenderId: "XXXX",
+  appId: "XXXX"
+};
+
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+
+const stationRef = ref(database, "station_meteo");
+
+const tempInt = document.getElementById("temp_int");
+const tempExt = document.getElementById("temp_ext");
+const humInt = document.getElementById("hum_int");
+const humExt = document.getElementById("hum_ext");
+const lampeToggle = document.getElementById("lampeToggle");
+
+onValue(stationRef, (snapshot) => {
+
+const data = snapshot.val();
+
+if(data){
+
+tempInt.innerHTML = data.temperature_interieur + " °C";
+tempExt.innerHTML = data.temperature_exterieur + " °C";
+humInt.innerHTML = data.humidite_interieur + " %";
+humExt.innerHTML = data.humidite_exterieur + " %";
+
+lampeToggle.checked = data.lampe;
+
+}
+
+});
+
+lampeToggle.addEventListener("change", () => {
+
+set(ref(database, "station_meteo/lampe"), lampeToggle.checked);
+
+});
+
+</script>
 
 </body>
 </html>
