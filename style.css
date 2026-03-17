@@ -145,7 +145,7 @@ input:checked + .slider:before {
 /* 📈 GRAPHIQUE */
 canvas {
     width: 100%;
-    height: 600px; /* 🔥 grand pour lisibilité */
+    height: 100px; /* 🔥 grand pour lisibilité */
     margin-top: 20px;
 }
 
