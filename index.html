@@ -5,6 +5,10 @@
 <meta charset="UTF-8">
 <title>Station météo</title>
 <link rel="stylesheet" href="style.css">
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 
 <body>
@@ -44,6 +48,9 @@
 
 </div>
 
+<!-- 📈 GRAPHIQUE -->
+<canvas id="graphique"></canvas>
+
 </div>
 
 <script type="module">
@@ -74,6 +81,7 @@ const tempExtRef = ref(database, "meteo/exterieur/Temp");
 const humExtRef = ref(database, "meteo/exterieur/Hum");
 
 const lampeRef = ref(database, "controle/lampe");
+const historiqueRef = ref(database, "historique");
 
 
 /* ELEMENTS HTML */
@@ -113,10 +121,86 @@ onValue(lampeRef, (snapshot) => {
 lampeToggle.addEventListener("change", async () => {
 
 const snapshot = await get(lampeRef);
-
 let valeurActuelle = snapshot.val();
-
 set(lampeRef, !valeurActuelle);
+
+});
+
+
+/* 📈 GRAPHIQUE */
+
+const ctx = document.getElementById("graphique").getContext("2d");
+
+let chart = new Chart(ctx, {
+    type: "line",
+    data: {
+        labels: [],
+        datasets: [
+            { label: "Temp Int (°C)", data: [], borderWidth: 2, tension: 0.3 },
+            { label: "Temp Ext (°C)", data: [], borderWidth: 2, tension: 0.3 },
+            { label: "Hum Int (%)", data: [], borderWidth: 2, tension: 0.3 },
+            { label: "Hum Ext (%)", data: [], borderWidth: 2, tension: 0.3 }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                labels: {
+                    font: { size: 14 }
+                }
+            }
+        }
+    }
+});
+
+
+onValue(historiqueRef, (snapshot) => {
+
+    const data = snapshot.val();
+    if (!data) return;
+
+    let entries = Object.values(data);
+
+    // 🔥 garder les 50 dernières valeurs
+    entries = entries.slice(-50);
+
+    const labels = [];
+    const tempIntData = [];
+    const tempExtData = [];
+    const humIntData = [];
+    const humExtData = [];
+
+    entries.forEach(entry => {
+
+        // 🚫 filtre valeurs aberrantes
+        if (
+            entry.temp_int < -5 || entry.temp_int > 45 ||
+            entry.temp_ext < -5 || entry.temp_ext > 45 ||
+            entry.hum_int < 0 || entry.hum_int > 100 ||
+            entry.hum_ext < 0 || entry.hum_ext > 100
+        ) {
+            return;
+        }
+
+        const date = new Date(entry.time * 1000);
+
+        labels.push(date.toLocaleTimeString());
+
+        tempIntData.push(entry.temp_int);
+        tempExtData.push(entry.temp_ext);
+        humIntData.push(entry.hum_int);
+        humExtData.push(entry.hum_ext);
+
+    });
+
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = tempIntData;
+    chart.data.datasets[1].data = tempExtData;
+    chart.data.datasets[2].data = humIntData;
+    chart.data.datasets[3].data = humExtData;
+
+    chart.update();
 
 });
 
