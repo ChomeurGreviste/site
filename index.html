@@ -8,6 +8,19 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<style>
+canvas {
+    width: 100%;
+    height: 600px;
+}
+
+.refresh-control {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+}
+</style>
+
 </head>
 
 <body>
@@ -16,41 +29,24 @@
 
 <h1>Station météo</h1>
 
-<div class="ligne">
-<span>Température intérieure</span>
-<div class="valeur" id="temp_int">-- °C</div>
-</div>
+<div class="ligne"><span>Température intérieure</span><div id="temp_int">--</div></div>
+<div class="ligne"><span>Température extérieure</span><div id="temp_ext">--</div></div>
+<div class="ligne"><span>Humidité intérieure</span><div id="hum_int">--</div></div>
+<div class="ligne"><span>Humidité extérieure</span><div id="hum_ext">--</div></div>
 
-<div class="ligne">
-<span>Température extérieure</span>
-<div class="valeur" id="temp_ext">-- °C</div>
-</div>
-
-<div class="ligne">
-<span>Humidité intérieure</span>
-<div class="valeur" id="hum_int">-- %</div>
-</div>
-
-<div class="ligne">
-<span>Humidité extérieure</span>
-<div class="valeur" id="hum_ext">-- %</div>
-</div>
-
-<div class="toggle-container">
+<div>
 <span>Lampe</span>
-<label class="switch">
 <input type="checkbox" id="lampeToggle">
-<span class="slider"></span>
-</label>
 </div>
 
-<!-- 📊 STATS -->
-<div class="stats">
+<div class="refresh-control">
+<input type="number" id="intervalInput" value="60000">
+<button id="applyInterval">Appliquer</button>
+</div>
+
 <p id="stats_temp"></p>
 <p id="stats_hum"></p>
-</div>
 
-<!-- 📈 GRAPHIQUE -->
 <canvas id="graphique"></canvas>
 
 </div>
@@ -60,176 +56,140 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, onValue, set, get, push, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyC30Lc4qGf2pmTkjFRp03vaNJiEJevP1I0",
-  authDomain: "databasemeteo-8efd3.firebaseapp.com",
-  databaseURL: "https://databasemeteo-8efd3-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "databasemeteo-8efd3",
-  storageBucket: "databasemeteo-8efd3.firebasestorage.app",
-  messagingSenderId: "1023251176606",
-  appId: "1:1023251176606:web:b4d36aed476bef52f4af8f",
-};
+/* FIREBASE */
+const app = initializeApp({
+  apiKey: "AIza...",
+  authDomain: "...",
+  databaseURL: "...",
+  projectId: "..."
+});
 
-const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
+const db = getDatabase(app);
 
-/* REFERENCES */
-
-const tempIntRef = ref(database, "meteo/interieur/Temp");
-const humIntRef = ref(database, "meteo/interieur/Hum");
-const tempExtRef = ref(database, "meteo/exterieur/Temp");
-const humExtRef = ref(database, "meteo/exterieur/Hum");
-const lampeRef = ref(database, "controle/lampe");
-const historiqueRef = ref(database, "historique");
+/* REFS */
+const historiqueRef = ref(db, "historique");
 
 /* HTML */
-
 const tempInt = document.getElementById("temp_int");
 const tempExt = document.getElementById("temp_ext");
 const humInt = document.getElementById("hum_int");
 const humExt = document.getElementById("hum_ext");
 const lampeToggle = document.getElementById("lampeToggle");
 
-const statsTemp = document.getElementById("stats_temp");
-const statsHum = document.getElementById("stats_hum");
+let tI, tE, hI, hE;
 
-/* VARIABLES */
+/* LECTURE */
+onValue(ref(db,"meteo/interieur/Temp"), s => { tI=parseFloat(s.val()); tempInt.innerHTML=tI+" °C"; });
+onValue(ref(db,"meteo/exterieur/Temp"), s => { tE=parseFloat(s.val()); tempExt.innerHTML=tE+" °C"; });
+onValue(ref(db,"meteo/interieur/Hum"), s => { hI=parseFloat(s.val()); humInt.innerHTML=hI+" %"; });
+onValue(ref(db,"meteo/exterieur/Hum"), s => { hE=parseFloat(s.val()); humExt.innerHTML=hE+" %"; });
 
-let currentTempInt, currentTempExt, currentHumInt, currentHumExt;
+onValue(ref(db,"controle/lampe"), s => lampeToggle.checked=s.val());
 
-/* LECTURE TEMPS REEL */
-
-onValue(tempIntRef, s => {
-  currentTempInt = parseFloat(s.val());
-  tempInt.innerHTML = currentTempInt + " °C";
+lampeToggle.addEventListener("change", async ()=>{
+  const snap = await get(ref(db,"controle/lampe"));
+  set(ref(db,"controle/lampe"), !snap.val());
 });
 
-onValue(tempExtRef, s => {
-  currentTempExt = parseFloat(s.val());
-  tempExt.innerHTML = currentTempExt + " °C";
-});
-
-onValue(humIntRef, s => {
-  currentHumInt = parseFloat(s.val());
-  humInt.innerHTML = currentHumInt + " %";
-});
-
-onValue(humExtRef, s => {
-  currentHumExt = parseFloat(s.val());
-  humExt.innerHTML = currentHumExt + " %";
-});
-
-onValue(lampeRef, s => {
-  lampeToggle.checked = s.val();
-});
-
-/* TOGGLE LAMPE */
-
-lampeToggle.addEventListener("change", async () => {
-  const snapshot = await get(lampeRef);
-  set(lampeRef, !snapshot.val());
-});
-
-/* ENREGISTREMENT AUTO */
-
-setInterval(async () => {
-
-  if (
-    currentTempInt == null ||
-    currentTempExt == null ||
-    currentHumInt == null ||
-    currentHumExt == null
-  ) return;
-
-  if (
-    currentTempInt < -5 || currentTempInt > 45 ||
-    currentTempExt < -5 || currentTempExt > 45 ||
-    currentHumInt < 0 || currentHumInt > 100 ||
-    currentHumExt < 0 || currentHumExt > 100
-  ) return;
-
-  const data = {
-    time: Math.floor(Date.now()/1000),
-    temp_int: currentTempInt,
-    temp_ext: currentTempExt,
-    hum_int: currentHumInt,
-    hum_ext: currentHumExt
-  };
-
-  await push(historiqueRef, data);
-
-}, 60000);
-
-/* GRAPHIQUE */
-
-const ctx = document.getElementById("graphique").getContext("2d");
-
-let chart = new Chart(ctx, {
+/* GRAPH */
+const chart = new Chart(document.getElementById("graphique"), {
   type: "line",
   data: { labels: [], datasets: [
-    { label:"Temp Int", data:[], yAxisID:'yTemp' },
-    { label:"Temp Ext", data:[], yAxisID:'yTemp' },
+    { label:"Temp Int", data:[], yAxisID:'yTemp', borderWidth:3 },
+    { label:"Temp Ext", data:[], yAxisID:'yTemp', borderDash:[5,5] },
     { label:"Hum Int", data:[], yAxisID:'yHum' },
-    { label:"Hum Ext", data:[], yAxisID:'yHum' }
+    { label:"Hum Ext", data:[], yAxisID:'yHum', borderDash:[5,5] }
   ]},
   options:{
+    responsive:true,
+    maintainAspectRatio:false,
     scales:{
-      yTemp:{ position:'left', min:-5, max:45 },
-      yHum:{ position:'right', min:0, max:100, grid:{drawOnChartArea:false} }
+      yTemp:{ position:'left', suggestedMin:-5, suggestedMax:45 },
+      yHum:{ position:'right', suggestedMin:0, suggestedMax:100, grid:{drawOnChartArea:false}},
+      x:{ ticks:{ callback:(val,i,t)=>t[i].label.slice(0,5) } }
     }
   }
 });
 
-/* HISTORIQUE + STATS */
+/* AFFICHAGE HISTORIQUE */
+onValue(historiqueRef, snap => {
 
-onValue(historiqueRef, async (snapshot) => {
+  let entries = Object.values(snap.val() || {}).sort((a,b)=>a.time-b.time).slice(-20);
 
-  const data = snapshot.val();
-  if (!data) return;
+  let labels=[], a=[], b=[], c=[], d=[];
 
-  let entries = Object.entries(data);
-
-  // 🔥 supprimer anciennes valeurs
-  if (entries.length > 50) {
-    const toDelete = entries.slice(0, entries.length - 50);
-    for (let [key] of toDelete) {
-      await remove(ref(database, "historique/" + key));
-    }
-  }
-
-  entries = entries.slice(-50);
-
-  let labels = [], tI=[], tE=[], hI=[], hE=[];
-
-  entries.forEach(([_, e]) => {
-
+  entries.forEach(e=>{
     labels.push(new Date(e.time*1000).toLocaleTimeString());
-
-    tI.push(e.temp_int);
-    tE.push(e.temp_ext);
-    hI.push(e.hum_int);
-    hE.push(e.hum_ext);
-
+    a.push(e.temp_int);
+    b.push(e.temp_ext);
+    c.push(e.hum_int);
+    d.push(e.hum_ext);
   });
 
-  chart.data.labels = labels;
-  chart.data.datasets[0].data = tI;
-  chart.data.datasets[1].data = tE;
-  chart.data.datasets[2].data = hI;
-  chart.data.datasets[3].data = hE;
+  chart.data.labels=labels;
+  chart.data.datasets[0].data=a;
+  chart.data.datasets[1].data=b;
+  chart.data.datasets[2].data=c;
+  chart.data.datasets[3].data=d;
   chart.update();
 
-  /* 📊 STATS */
-
-  const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
-
-  statsTemp.innerHTML =
-    `Temp Moy: ${avg(tI).toFixed(1)}°C | Min: ${Math.min(...tI)} | Max: ${Math.max(...tI)}`;
-
-  statsHum.innerHTML =
-    `Hum Moy: ${avg(hI).toFixed(1)}% | Min: ${Math.min(...hI)} | Max: ${Math.max(...hI)}`;
-
 });
+
+/* 🔥 ENREGISTREMENT + NETTOYAGE */
+async function saveData(){
+
+  if([tI,tE,hI,hE].some(v=>isNaN(v))) return;
+
+  if(tI<-5||tI>45||tE<-5||tE>45||hI<0||hI>100||hE<0||hE>100) return;
+
+  // 1. ajouter
+  await push(historiqueRef,{
+    time:Math.floor(Date.now()/1000),
+    temp_int:tI,
+    temp_ext:tE,
+    hum_int:hI,
+    hum_ext:hE
+  });
+
+  // 2. récupérer tout
+  const snap = await get(historiqueRef);
+  const data = snap.val();
+
+  if(!data) return;
+
+  let entries = Object.entries(data).sort((a,b)=>a[1].time-b[1].time);
+
+  // 3. supprimer ancien
+  if(entries.length > 20){
+
+    let toDelete = entries.slice(0, entries.length - 20);
+
+    await Promise.all(
+      toDelete.map(([key]) => remove(ref(db,"historique/"+key)))
+    );
+
+    console.log("Anciennes valeurs supprimées");
+  }
+}
+
+/* INTERVAL */
+let intervalTime = 60000;
+let intervalID;
+
+function startInterval(){
+  if(intervalID) clearInterval(intervalID);
+  intervalID = setInterval(saveData, intervalTime);
+}
+
+startInterval();
+
+/* CONTROLE INTERVAL */
+document.getElementById("applyInterval").onclick = ()=>{
+  let v = parseInt(document.getElementById("intervalInput").value);
+  if(isNaN(v)||v<1000) return alert("Min 1000ms");
+  intervalTime=v;
+  startInterval();
+};
 
 </script>
 
