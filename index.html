@@ -202,50 +202,33 @@ const ctx = document.getElementById("graphique").getContext("2d");
 
 let chart = new Chart(ctx, {
   type: "line",
-  data: { labels: [], datasets: [
-    { label:"Temp Int", data:[], yAxisID:'yTemp' },
-    { label:"Temp Ext", data:[], yAxisID:'yTemp' },
-    { label:"Hum Int", data:[], yAxisID:'yHum' },
-    { label:"Hum Ext", data:[], yAxisID:'yHum' }
-  ]},
-  options:{
-  responsive:true,
-  maintainAspectRatio:false,
-
-  plugins:{
-    legend:{
-      labels:{
-        font:{ size:14 }
-      }
-    }
+  data: {
+    labels: [],
+    datasets: [
+      { label:"Temp Int", data:[], yAxisID:'yTemp' },
+      { label:"Temp Ext", data:[], yAxisID:'yTemp' },
+      { label:"Hum Int", data:[], yAxisID:'yHum' },
+      { label:"Hum Ext", data:[], yAxisID:'yHum' }
+    ]
   },
-
-  scales:{
-    yTemp:{
-      position:'left',
-      suggestedMin:-5,
-      suggestedMax:45,
-      ticks:{ stepSize:5 }
-    },
-
-    yHum:{
-      position:'right',
-      suggestedMin:0,
-      suggestedMax:100,
-      ticks:{ stepSize:10 },
-      grid:{ drawOnChartArea:false }
-    },
-
-    x:{
-      ticks:{
-        maxTicksLimit:10,
-        callback:function(val){
-          return this.getLabelForValue(val).slice(0,5);
-        }
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      yTemp: {
+        position: 'left',
+        suggestedMin: -5,
+        suggestedMax: 45
+      },
+      yHum: {
+        position: 'right',
+        suggestedMin: 0,
+        suggestedMax: 100,
+        grid: { drawOnChartArea: false }
       }
     }
   }
-};
+});
 
 /* HISTORIQUE + STATS */
 
