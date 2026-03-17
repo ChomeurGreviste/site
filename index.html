@@ -44,6 +44,12 @@
 </label>
 </div>
 
+<div class="refresh-control">
+  <span>Intervalle (ms)</span>
+  <input type="number" id="intervalInput" value="60000">
+  <button id="applyInterval">Appliquer</button>
+</div>
+  
 <!-- 📊 STATS -->
 <div class="stats">
 <p id="stats_temp"></p>
@@ -132,13 +138,16 @@ lampeToggle.addEventListener("change", async () => {
 
 /* ENREGISTREMENT AUTO */
 
-setInterval(async () => {
+let intervalTime = 60000;
+let intervalID;
+
+async function saveData(){
 
   if (
-    currentTempInt == null ||
-    currentTempExt == null ||
-    currentHumInt == null ||
-    currentHumExt == null
+    isNaN(currentTempInt) ||
+    isNaN(currentTempExt) ||
+    isNaN(currentHumInt) ||
+    isNaN(currentHumExt)
   ) return;
 
   if (
@@ -148,17 +157,44 @@ setInterval(async () => {
     currentHumExt < 0 || currentHumExt > 100
   ) return;
 
-  const data = {
+  // 🔥 AJOUT
+  await push(historiqueRef, {
     time: Math.floor(Date.now()/1000),
     temp_int: currentTempInt,
     temp_ext: currentTempExt,
     hum_int: currentHumInt,
     hum_ext: currentHumExt
-  };
+  });
 
-  await push(historiqueRef, data);
+  // 🔥 NETTOYAGE (20 max)
+  const snap = await get(historiqueRef);
+  const data = snap.val();
 
-}, 60000);
+  if (!data) return;
+
+  let entries = Object.entries(data)
+    .sort((a,b)=>a[1].time - b[1].time);
+
+  if (entries.length > 20) {
+
+    let toDelete = entries.slice(0, entries.length - 20);
+
+    await Promise.all(
+      toDelete.map(([key]) =>
+        remove(ref(database, "historique/" + key))
+      )
+    );
+
+    console.log("Anciennes valeurs supprimées");
+  }
+}
+
+function startInterval(){
+  if(intervalID) clearInterval(intervalID);
+  intervalID = setInterval(saveData, intervalTime);
+}
+
+startInterval();
 
 /* GRAPHIQUE */
 
@@ -173,12 +209,43 @@ let chart = new Chart(ctx, {
     { label:"Hum Ext", data:[], yAxisID:'yHum' }
   ]},
   options:{
-    scales:{
-      yTemp:{ position:'left', min:-5, max:45 },
-      yHum:{ position:'right', min:0, max:100, grid:{drawOnChartArea:false} }
+  responsive:true,
+  maintainAspectRatio:false,
+
+  plugins:{
+    legend:{
+      labels:{
+        font:{ size:14 }
+      }
+    }
+  },
+
+  scales:{
+    yTemp:{
+      position:'left',
+      suggestedMin:-5,
+      suggestedMax:45,
+      ticks:{ stepSize:5 }
+    },
+
+    yHum:{
+      position:'right',
+      suggestedMin:0,
+      suggestedMax:100,
+      ticks:{ stepSize:10 },
+      grid:{ drawOnChartArea:false }
+    },
+
+    x:{
+      ticks:{
+        maxTicksLimit:10,
+        callback:function(val){
+          return this.getLabelForValue(val).slice(0,5);
+        }
+      }
     }
   }
-});
+}
 
 /* HISTORIQUE + STATS */
 
@@ -190,14 +257,14 @@ onValue(historiqueRef, async (snapshot) => {
   let entries = Object.entries(data);
 
   // 🔥 supprimer anciennes valeurs
-  if (entries.length > 50) {
-    const toDelete = entries.slice(0, entries.length - 50);
+  if (entries.length > 20) {
+    const toDelete = entries.slice(0, entries.length - 20);
     for (let [key] of toDelete) {
       await remove(ref(database, "historique/" + key));
     }
   }
 
-  entries = entries.slice(-50);
+  entries = entries.slice(-20);
 
   let labels = [], tI=[], tE=[], hI=[], hE=[];
 
@@ -231,6 +298,21 @@ onValue(historiqueRef, async (snapshot) => {
 
 });
 
+document.getElementById("applyInterval").addEventListener("click", () => {
+
+  let value = parseInt(document.getElementById("intervalInput").value);
+
+  if (isNaN(value) || value < 1000) {
+    alert("Minimum 1000 ms");
+    return;
+  }
+
+  intervalTime = value;
+  startInterval();
+
+  console.log("Nouvel interval :", intervalTime);
+});
+  
 </script>
 
 </body>
