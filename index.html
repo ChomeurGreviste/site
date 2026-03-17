@@ -251,32 +251,16 @@ onValue(historiqueRef, async (snapshot) => {
 
   let labels = [], tI=[], tE=[], hI=[], hE=[];
 
-entries.forEach(([_, e]) => {
+  entries.forEach(([_, e]) => {
 
-  // 🔥 FILTRE ANTI BUG
-  if (
-    !e ||
-    isNaN(e.temp_int) ||
-    isNaN(e.temp_ext) ||
-    isNaN(e.hum_int) ||
-    isNaN(e.hum_ext)
-  ) return;
+    labels.push(new Date(e.time*1000).toLocaleTimeString());
 
-  if (
-    e.temp_int < -5 || e.temp_int > 45 ||
-    e.temp_ext < -5 || e.temp_ext > 45 ||
-    e.hum_int < 0 || e.hum_int > 100 ||
-    e.hum_ext < 0 || e.hum_ext > 100
-  ) return;
+    tI.push(e.temp_int);
+    tE.push(e.temp_ext);
+    hI.push(e.hum_int);
+    hE.push(e.hum_ext);
 
-  labels.push(new Date(e.time * 1000).toLocaleTimeString());
-
-  tI.push(e.temp_int);
-  tE.push(e.temp_ext);
-  hI.push(e.hum_int);
-  hE.push(e.hum_ext);
-
-});
+  });
 
   chart.data.labels = labels;
   chart.data.datasets[0].data = tI;
