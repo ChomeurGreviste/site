@@ -198,15 +198,7 @@ startInterval();
 
 /* GRAPHIQUE */
 
-const ctx = document.getElementById("graphique").getContext("3d");
-
-// TEMPÉRATURE (int + ext)
-const tempMin = Math.min(...tempIntData, ...tempExtData);
-const tempMax = Math.max(...tempIntData, ...tempExtData);
-
-// HUMIDITÉ (int + ext)
-const humMin = Math.min(...humIntData, ...humExtData);
-const humMax = Math.max(...humIntData, ...humExtData);
+const ctx = document.getElementById("graphique").getContext("2d");
   
 let chart = new Chart(ctx, {
   type: "line",
@@ -224,13 +216,13 @@ let chart = new Chart(ctx, {
     scales: {
       yTemp: {
         position: 'left',
-        suggestedMin: tempMin,
-        suggestedMax: tempMax
+        suggestedMin: 10,
+        suggestedMax: 40
       },
       yHum: {
         position: 'right',
-        suggestedMin: humMin,
-        suggestedMax: humMax,
+        suggestedMin: 0,
+        suggestedMax: 100,
         grid: { drawOnChartArea: false }
       }
     }
