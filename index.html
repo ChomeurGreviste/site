@@ -198,25 +198,15 @@ startInterval();
 
 /* GRAPHIQUE */
 
-/* GRAPHIQUE */
-
 const ctx = document.getElementById("graphique").getContext("3d");
 
-function getSmartRange(data) {
-  if (data.length === 0) return { min: 0, max: 1 };
+// TEMPÉRATURE (int + ext)
+const tempMin = Math.min(...tempIntData, ...tempExtData);
+const tempMax = Math.max(...tempIntData, ...tempExtData);
 
-  const sorted = [...data].sort((a, b) => a - b);
-  const p10 = sorted[Math.floor(sorted.length * 0.1)];
-  const p90 = sorted[Math.floor(sorted.length * 0.9)];
-
-  return {
-    min: p10 - 1,
-    max: p90 + 1
-  };
-}
-
-let tempRange = getSmartRange(tempData);
-let humRange = getSmartRange(humData);
+// HUMIDITÉ (int + ext)
+const humMin = Math.min(...humIntData, ...humExtData);
+const humMax = Math.max(...humIntData, ...humExtData);
   
 let chart = new Chart(ctx, {
   type: "line",
@@ -234,13 +224,13 @@ let chart = new Chart(ctx, {
     scales: {
       yTemp: {
         position: 'left',
-        suggestedMin: tempRange.min,
-        suggestedMax: tempRange.max
+        suggestedMin: tempMin,
+        suggestedMax: tempMax
       },
       yHum: {
         position: 'right',
-        suggestedMin: humRange.min,
-        suggestedMax: humRange.max,
+        suggestedMin: humMin,
+        suggestedMax: humMax,
         grid: { drawOnChartArea: false }
       }
     }
