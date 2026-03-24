@@ -198,36 +198,46 @@ startInterval();
 
 /* GRAPHIQUE */
 
+/* GRAPHIQUE */
+
 const ctx = document.getElementById("graphique").getContext("2d");
 
-function getSmartRange(data) {
+// 🔧 Fonction pour calculer min/max dynamiques
+function getMinMax(data, padding = 2) {
   if (data.length === 0) return { min: 0, max: 1 };
 
-  const sorted = [...data].sort((a, b) => a - b);
-  const p10 = sorted[Math.floor(sorted.length * 0.1)];
-  const p90 = sorted[Math.floor(sorted.length * 0.9)];
+  const min = Math.min(...data);
+  const max = Math.max(...data);
 
   return {
-    min: p10 - 1,
-    max: p90 + 1
+    min: min - padding,
+    max: max + padding
   };
 }
 
-let tempData = []; // à remplir
-let humData = [];
+// ⚠️ IMPORTANT : mets ici tes vraies données
+let tempIntData = [];
+let tempExtData = [];
+let humIntData = [];
+let humExtData = [];
 
-let tempRange = getSmartRange(tempData);
-let humRange = getSmartRange(humData);
+// 🔥 Fusion des datasets pour chaque axe
+let allTemp = [...tempIntData, ...tempExtData];
+let allHum = [...humIntData, ...humExtData];
+
+// 🔧 Calcul des plages
+let tempRange = getMinMax(allTemp);
+let humRange = getMinMax(allHum);
 
 let chart = new Chart(ctx, {
   type: "line",
   data: {
     labels: [],
     datasets: [
-      { label:"Temp Int", data:[], yAxisID:'yTemp' },
-      { label:"Temp Ext", data:[], yAxisID:'yTemp' },
-      { label:"Hum Int", data:[], yAxisID:'yHum' },
-      { label:"Hum Ext", data:[], yAxisID:'yHum' }
+      { label:"Temp Int", data: tempIntData, yAxisID:'yTemp' },
+      { label:"Temp Ext", data: tempExtData, yAxisID:'yTemp' },
+      { label:"Hum Int", data: humIntData, yAxisID:'yHum' },
+      { label:"Hum Ext", data: humExtData, yAxisID:'yHum' }
     ]
   },
   options: {
