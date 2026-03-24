@@ -200,6 +200,45 @@ startInterval();
 
 const ctx = document.getElementById("graphique").getContext("2d");
 
+// fonction moyenne
+const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
+
+// fonction pour recalculer min/max dynamiques sur les datasets visibles
+function updateYAxisZoom(chart, tI, tE, hI, hE) {
+  let visibleTemp = [];
+  let visibleHum = [];
+
+  if(chart.isDatasetVisible(0)) visibleTemp.push(...tI);
+  if(chart.isDatasetVisible(1)) visibleTemp.push(...tE);
+  if(chart.isDatasetVisible(2)) visibleHum.push(...hI);
+  if(chart.isDatasetVisible(3)) visibleHum.push(...hE);
+
+  // sécurité si rien n'est visible
+  if(visibleTemp.length === 0) visibleTemp = [0];
+  if(visibleHum.length === 0) visibleHum = [0];
+
+  // moyenne et min/max
+  const tempAvg = avg(visibleTemp);
+  const humAvg = avg(visibleHum);
+
+  const tempMin = Math.min(...visibleTemp);
+  const tempMax = Math.max(...visibleTemp);
+  const humMin = Math.min(...visibleHum);
+  const humMax = Math.max(...visibleHum);
+
+  const tempRange = Math.max(Math.abs(tempAvg-tempMin), Math.abs(tempAvg-tempMax));
+  const humRange = Math.max(Math.abs(humAvg-humMin), Math.abs(humAvg-humMax));
+
+  // appliquer zoom centré
+  chart.options.scales.yTemp.min = tempAvg - tempRange;
+  chart.options.scales.yTemp.max = tempAvg + tempRange;
+
+  chart.options.scales.yHum.min = humAvg - humRange;
+  chart.options.scales.yHum.max = humAvg + humRange;
+
+  chart.update();
+}
+
 let chart = new Chart(ctx, {
   type: "line",
   data: {
@@ -213,11 +252,23 @@ let chart = new Chart(ctx, {
   },
   options: {
     scales: {
-      yTemp: {
-        position: 'left'
-      },
-      yHum: {
-        position: 'right'
+      yTemp: { position: 'left' },
+      yHum: { position: 'right' }
+    },
+    plugins: {
+      legend: {
+        onClick: (e, legendItem, legend) => {
+          const index = legendItem.datasetIndex;
+          const ci = legend.chart;
+
+          ci.toggleDataVisibility(index);
+
+          // recalculer zoom pour datasets visibles
+          updateYAxisZoom(ci, chart.data.datasets[0].data,
+                               chart.data.datasets[1].data,
+                               chart.data.datasets[2].data,
+                               chart.data.datasets[3].data);
+        }
       }
     }
   }
@@ -257,7 +308,11 @@ onValue(historiqueRef, async (snapshot) => {
   chart.data.datasets[1].data = tE;
   chart.data.datasets[2].data = hI;
   chart.data.datasets[3].data = hE;
+  
+updateYAxisZoom(chart, tI, tE, hI, hE);
 
+chart.update();
+  
   /* 📊 STATS */
 
   const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
