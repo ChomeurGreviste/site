@@ -88,6 +88,8 @@ const humExtRef = ref(database, "meteo/exterieur/Hum");
 const lampeRef = ref(database, "controle/lampe");
 const historiqueRef = ref(database, "historique");
 
+const tempAverage = ((tempIntRef+tempExtRef)/2);
+const humAverage = ((humIntRef+humExtRef)/2);
 /* HTML */
 
 const tempInt = document.getElementById("temp_int");
@@ -198,15 +200,9 @@ startInterval();
 
 /* GRAPHIQUE */
 
-const ctx = document.getElementById("graphique").getContext("3d");
+const ctx = document.getElementById("graphique").getContext("2d");
 
-// TEMPÉRATURE (int + ext)
-const tempMin = Math.min(...tempIntData, ...tempExtData);
-const tempMax = Math.max(...tempIntData, ...tempExtData);
 
-// HUMIDITÉ (int + ext)
-const humMin = Math.min(...humIntData, ...humExtData);
-const humMax = Math.max(...humIntData, ...humExtData);
   
 let chart = new Chart(ctx, {
   type: "line",
@@ -223,13 +219,19 @@ let chart = new Chart(ctx, {
     scales: {
       yTemp: {
         position: 'left',
-        suggestedMin: tempMin,
-        suggestedMax: tempMax
+        suggestedMin: tempAverage+10,
+        suggestedMax: tempAverage-10
+        ticks: {
+    stepSize: 1
+  }
       },
       yHum: {
         position: 'right',
         suggestedMin: humMin,
         suggestedMax: humMax,
+        ticks: {
+    stepSize: 1
+  }
         grid: { drawOnChartArea: false }
       }
     }
