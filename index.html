@@ -198,7 +198,26 @@ startInterval();
 
 /* GRAPHIQUE */
 
-const ctx = document.getElementById("graphique").getContext("3d");
+const ctx = document.getElementById("graphique").getContext("2d");
+
+function getSmartRange(data) {
+  if (data.length === 0) return { min: 0, max: 1 };
+
+  const sorted = [...data].sort((a, b) => a - b);
+  const p10 = sorted[Math.floor(sorted.length * 0.1)];
+  const p90 = sorted[Math.floor(sorted.length * 0.9)];
+
+  return {
+    min: p10 - 1,
+    max: p90 + 1
+  };
+}
+
+let tempData = []; // à remplir
+let humData = [];
+
+let tempRange = getSmartRange(tempData);
+let humRange = getSmartRange(humData);
 
 let chart = new Chart(ctx, {
   type: "line",
@@ -212,17 +231,19 @@ let chart = new Chart(ctx, {
     ]
   },
   options: {
-    is3D:true,
+    responsive: true,
+    maintainAspectRatio: false,
+
     scales: {
       yTemp: {
         position: 'left',
-        suggestedMin: -5,
-        suggestedMax: 45
+        min: tempRange.min,
+        max: tempRange.max
       },
       yHum: {
         position: 'right',
-        suggestedMin: 0,
-        suggestedMax: 100,
+        min: humRange.min,
+        max: humRange.max,
         grid: { drawOnChartArea: false }
       }
     }
