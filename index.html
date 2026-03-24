@@ -214,15 +214,10 @@ let chart = new Chart(ctx, {
   options: {
     scales: {
       yTemp: {
-        position: 'left',
-        suggestedMin: -5,
-        suggestedMax: 40
+        position: 'left'
       },
       yHum: {
-        position: 'right',
-        suggestedMin: 0,
-        suggestedMax: 100,
-        grid: { drawOnChartArea: false }
+        position: 'right'
       }
     }
   }
@@ -237,7 +232,6 @@ onValue(historiqueRef, async (snapshot) => {
 
   let entries = Object.entries(data);
 
-  // 🔥 supprimer anciennes valeurs
   if (entries.length > 20) {
     const toDelete = entries.slice(0, entries.length - 20);
     for (let [key] of toDelete) {
@@ -250,14 +244,12 @@ onValue(historiqueRef, async (snapshot) => {
   let labels = [], tI=[], tE=[], hI=[], hE=[];
 
   entries.forEach(([_, e]) => {
-
     labels.push(new Date(e.time*1000).toLocaleTimeString());
 
     tI.push(e.temp_int);
     tE.push(e.temp_ext);
     hI.push(e.hum_int);
     hE.push(e.hum_ext);
-
   });
 
   chart.data.labels = labels;
@@ -265,11 +257,39 @@ onValue(historiqueRef, async (snapshot) => {
   chart.data.datasets[1].data = tE;
   chart.data.datasets[2].data = hI;
   chart.data.datasets[3].data = hE;
-  chart.update();
 
   /* 📊 STATS */
 
   const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
+
+  const tempAvg = avg([...tI, ...tE]);
+  const humAvg = avg([...hI, ...hE]);
+
+  const tempMin = Math.min(...tI, ...tE);
+  const tempMax = Math.max(...tI, ...tE);
+
+  const humMin = Math.min(...hI, ...hE);
+  const humMax = Math.max(...hI, ...hE);
+
+  // 🔥 Écart max autour de la moyenne
+  const tempRange = Math.max(
+    Math.abs(tempAvg - tempMin),
+    Math.abs(tempAvg - tempMax)
+  );
+
+  const humRange = Math.max(
+    Math.abs(humAvg - humMin),
+    Math.abs(humAvg - humMax)
+  );
+
+  // 🔥 Application du zoom centré sur la moyenne
+  chart.options.scales.yTemp.min = tempAvg - tempRange;
+  chart.options.scales.yTemp.max = tempAvg + tempRange;
+
+  chart.options.scales.yHum.min = humAvg - humRange;
+  chart.options.scales.yHum.max = humAvg + humRange;
+
+  chart.update();
 
   statsTemp.innerHTML =
     `Temp Moy: ${avg(tI).toFixed(1)}°C | Min: ${Math.min(...tI)} | Max: ${Math.max(...tI)}`;
