@@ -256,18 +256,21 @@ let chart = new Chart(ctx, {
       yHum: { position: 'right' }
     },
     plugins: {
-      legend: {
-        onClick: (e, legendItem, legend) => {
-          const index = legendItem.datasetIndex;
-          const ci = legend.chart;
+  legend: {
+    onClick: (e, legendItem, legend) => {
+      const ci = legend.chart;
+      const index = legendItem.datasetIndex;
 
-          ci.toggleDataVisibility(index);
+      // 🔹 appeler le comportement par défaut pour cacher/afficher la courbe
+      Chart.defaults.plugins.legend.onClick(e, legendItem, legend);
 
-          // recalculer zoom pour datasets visibles
-          updateYAxisZoom(ci, chart.data.datasets[0].data,
-                               chart.data.datasets[1].data,
-                               chart.data.datasets[2].data,
-                               chart.data.datasets[3].data);
+      // 🔹 ensuite recalculer l'axe Y pour les datasets visibles
+      updateYAxisZoom(ci,
+        ci.data.datasets[0].data,
+        ci.data.datasets[1].data,
+        ci.data.datasets[2].data,
+        ci.data.datasets[3].data
+      );
         }
       }
     }
