@@ -198,7 +198,7 @@ startInterval();
 
 /* GRAPHIQUE */
 
-const ctx = document.getElementById("graphique").getContext("2d");
+const ctx = document.getElementById("graphique").getContext("3d");
 
 let chart = new Chart(ctx, {
   type: "line",
@@ -212,6 +212,7 @@ let chart = new Chart(ctx, {
     ]
   },
   options: {
+    is3D:true,
     scales: {
       yTemp: {
         position: 'left',
