@@ -151,8 +151,8 @@ async function saveData(){
   ) return;
 
   if (
-    currentTempInt < -5 || currentTempInt > 45 ||
-    currentTempExt < -5 || currentTempExt > 45 ||
+    currentTempInt < -5 || currentTempInt > 40 ||
+    currentTempExt < -5 || currentTempExt > 40 ||
     currentHumInt < 0 || currentHumInt > 100 ||
     currentHumExt < 0 || currentHumExt > 100
   ) return;
@@ -216,7 +216,10 @@ let chart = new Chart(ctx, {
       yTemp: {
         position: 'left',
         suggestedMin: -5,
-        suggestedMax: 45
+        suggestedMax: 40
+          ticks: {
+    stepSize: 10
+  }
       },
       yHum: {
         position: 'right',
