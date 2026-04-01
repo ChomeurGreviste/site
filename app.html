@@ -5,8 +5,53 @@
 <meta charset="UTF-8">
 <title>Station météo</title>
 <link rel="stylesheet" href="style.css">
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+/* MENU */
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.menu {
+    position: relative;
+}
+
+.menu-button {
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.menu-content {
+    position: absolute;
+    right: 0;
+    background: #1e293b;
+    border-radius: 10px;
+    display: none;
+    flex-direction: column;
+    min-width: 150px;
+}
+
+.menu-content button {
+    background: none;
+    border: none;
+    color: white;
+    padding: 10px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.menu-content button:hover {
+    background: #334155;
+}
+
+.show {
+    display: flex;
+}
+</style>
 
 </head>
 
@@ -14,27 +59,26 @@
 
 <div class="container">
 
+<!-- 🔝 TOP BAR -->
+<div class="topbar">
 <h1>Station météo</h1>
 
-<div class="ligne">
-<span>Température intérieure</span>
-<div class="valeur" id="temp_int">-- °C</div>
+<div class="menu">
+<div class="menu-button" id="menuBtn">☰</div>
+
+<div class="menu-content" id="menuContent">
+<button id="historiqueBtn">📊 Historique avancé</button>
+<button id="logoutBtn">🚪 Déconnexion</button>
 </div>
 
-<div class="ligne">
-<span>Température extérieure</span>
-<div class="valeur" id="temp_ext">-- °C</div>
+</div>
 </div>
 
-<div class="ligne">
-<span>Humidité intérieure</span>
-<div class="valeur" id="hum_int">-- %</div>
-</div>
-
-<div class="ligne">
-<span>Humidité extérieure</span>
-<div class="valeur" id="hum_ext">-- %</div>
-</div>
+<!-- 📊 DONNÉES -->
+<div class="ligne"><span>Température intérieure</span><div class="valeur" id="temp_int">--</div></div>
+<div class="ligne"><span>Température extérieure</span><div class="valeur" id="temp_ext">--</div></div>
+<div class="ligne"><span>Humidité intérieure</span><div class="valeur" id="hum_int">--</div></div>
+<div class="ligne"><span>Humidité extérieure</span><div class="valeur" id="hum_ext">--</div></div>
 
 <div class="toggle-container">
 <span>Lampe</span>
@@ -44,19 +88,11 @@
 </label>
 </div>
 
-<div class="refresh-control">
-  <span>Intervalle (ms)</span>
-  <input type="number" id="intervalInput" value="60000">
-  <button id="applyInterval">Appliquer</button>
-</div>
-  
-<!-- 📊 STATS -->
 <div class="stats">
 <p id="stats_temp"></p>
 <p id="stats_hum"></p>
 </div>
 
-<!-- 📈 GRAPHIQUE -->
 <canvas id="graphique"></canvas>
 
 </div>
@@ -65,31 +101,53 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, onValue, set, get, push, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-const firebaseConfig = {
+/* FIREBASE */
+const app = initializeApp({
   apiKey: "AIzaSyC30Lc4qGf2pmTkjFRp03vaNJiEJevP1I0",
   authDomain: "databasemeteo-8efd3.firebaseapp.com",
   databaseURL: "https://databasemeteo-8efd3-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "databasemeteo-8efd3",
-  storageBucket: "databasemeteo-8efd3.firebasestorage.app",
-  messagingSenderId: "1023251176606",
-  appId: "1:1023251176606:web:b4d36aed476bef52f4af8f",
+  projectId: "databasemeteo-8efd3"
+});
+
+const db = getDatabase(app);
+const auth = getAuth(app);
+
+/* 🔐 PROTECTION PAGE */
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    window.location.href = "index.html";
+  }
+});
+
+/* MENU */
+const menuBtn = document.getElementById("menuBtn");
+const menuContent = document.getElementById("menuContent");
+
+menuBtn.onclick = () => {
+  menuContent.classList.toggle("show");
 };
 
-const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
+document.getElementById("logoutBtn").onclick = () => {
+  signOut(auth).then(() => {
+    window.location.href = "index.html";
+  });
+};
+
+document.getElementById("historiqueBtn").onclick = () => {
+  alert("Page historique avancé à venir");
+};
 
 /* REFERENCES */
-
-const tempIntRef = ref(database, "meteo/interieur/Temp");
-const humIntRef = ref(database, "meteo/interieur/Hum");
-const tempExtRef = ref(database, "meteo/exterieur/Temp");
-const humExtRef = ref(database, "meteo/exterieur/Hum");
-const lampeRef = ref(database, "controle/lampe");
-const historiqueRef = ref(database, "historique");
+const tempIntRef = ref(db, "meteo/interieur/Temp");
+const humIntRef = ref(db, "meteo/interieur/Hum");
+const tempExtRef = ref(db, "meteo/exterieur/Temp");
+const humExtRef = ref(db, "meteo/exterieur/Hum");
+const lampeRef = ref(db, "controle/lampe");
+const historiqueRef = ref(db, "historique");
 
 /* HTML */
-
 const tempInt = document.getElementById("temp_int");
 const tempExt = document.getElementById("temp_ext");
 const humInt = document.getElementById("hum_int");
@@ -100,278 +158,103 @@ const statsTemp = document.getElementById("stats_temp");
 const statsHum = document.getElementById("stats_hum");
 
 /* VARIABLES */
+let tI, tE, hI, hE;
 
-let currentTempInt, currentTempExt, currentHumInt, currentHumExt;
+/* TEMPS REEL */
+onValue(tempIntRef, s => { tI=parseFloat(s.val()); tempInt.innerHTML=tI+" °C"; });
+onValue(tempExtRef, s => { tE=parseFloat(s.val()); tempExt.innerHTML=tE+" °C"; });
+onValue(humIntRef, s => { hI=parseFloat(s.val()); humInt.innerHTML=hI+" %"; });
+onValue(humExtRef, s => { hE=parseFloat(s.val()); humExt.innerHTML=hE+" %"; });
+onValue(lampeRef, s => lampeToggle.checked=s.val());
 
-/* LECTURE TEMPS REEL */
-
-onValue(tempIntRef, s => {
-  currentTempInt = parseFloat(s.val());
-  tempInt.innerHTML = currentTempInt + " °C";
+lampeToggle.addEventListener("change", async ()=>{
+  const snap = await get(lampeRef);
+  set(lampeRef, !snap.val());
 });
 
-onValue(tempExtRef, s => {
-  currentTempExt = parseFloat(s.val());
-  tempExt.innerHTML = currentTempExt + " °C";
-});
-
-onValue(humIntRef, s => {
-  currentHumInt = parseFloat(s.val());
-  humInt.innerHTML = currentHumInt + " %";
-});
-
-onValue(humExtRef, s => {
-  currentHumExt = parseFloat(s.val());
-  humExt.innerHTML = currentHumExt + " %";
-});
-
-onValue(lampeRef, s => {
-  lampeToggle.checked = s.val();
-});
-
-/* TOGGLE LAMPE */
-
-lampeToggle.addEventListener("change", async () => {
-  const snapshot = await get(lampeRef);
-  set(lampeRef, !snapshot.val());
-});
-
-/* ENREGISTREMENT AUTO */
-
-let intervalTime = 60000;
-let intervalID;
-
-async function saveData(){
-
-  if (
-    isNaN(currentTempInt) ||
-    isNaN(currentTempExt) ||
-    isNaN(currentHumInt) ||
-    isNaN(currentHumExt)
-  ) return;
-
-  if (
-    currentTempInt < -5 || currentTempInt > 40 ||
-    currentTempExt < -5 || currentTempExt > 40 ||
-    currentHumInt < 0 || currentHumInt > 100 ||
-    currentHumExt < 0 || currentHumExt > 100
-  ) return;
-
-  // 🔥 AJOUT
-  await push(historiqueRef, {
-    time: Math.floor(Date.now()/1000),
-    temp_int: currentTempInt,
-    temp_ext: currentTempExt,
-    hum_int: currentHumInt,
-    hum_ext: currentHumExt
-  });
-
-  // 🔥 NETTOYAGE (20 max)
-  const snap = await get(historiqueRef);
-  const data = snap.val();
-
-  if (!data) return;
-
-  let entries = Object.entries(data)
-    .sort((a,b)=>a[1].time - b[1].time);
-
-  if (entries.length > 20) {
-
-    let toDelete = entries.slice(0, entries.length - 20);
-
-    await Promise.all(
-      toDelete.map(([key]) =>
-        remove(ref(database, "historique/" + key))
-      )
-    );
-
-    console.log("Anciennes valeurs supprimées");
-  }
-}
-
-function startInterval(){
-  if(intervalID) clearInterval(intervalID);
-  intervalID = setInterval(saveData, intervalTime);
-}
-
-startInterval();
-
-/* GRAPHIQUE */
-
-const ctx = document.getElementById("graphique").getContext("2d");
-
-// fonction moyenne
-const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
-
-// fonction pour recalculer min/max dynamiques sur les datasets visibles
-function updateYAxisZoom(chart, tI, tE, hI, hE) {
-  let visibleTemp = [];
-  let visibleHum = [];
-
-  if(chart.isDatasetVisible(0)) visibleTemp.push(...tI);
-  if(chart.isDatasetVisible(1)) visibleTemp.push(...tE);
-  if(chart.isDatasetVisible(2)) visibleHum.push(...hI);
-  if(chart.isDatasetVisible(3)) visibleHum.push(...hE);
-
-  // sécurité si rien n'est visible
-  if(visibleTemp.length === 0) visibleTemp = [0];
-  if(visibleHum.length === 0) visibleHum = [0];
-
-  // moyenne et min/max
-  const tempAvg = avg(visibleTemp);
-  const humAvg = avg(visibleHum);
-
-  const tempMin = Math.min(...visibleTemp);
-  const tempMax = Math.max(...visibleTemp);
-  const humMin = Math.min(...visibleHum);
-  const humMax = Math.max(...visibleHum);
-
-  const tempRange = Math.max(Math.abs(tempAvg-tempMin), Math.abs(tempAvg-tempMax));
-  const humRange = Math.max(Math.abs(humAvg-humMin), Math.abs(humAvg-humMax));
-
-  // appliquer zoom centré
-  chart.options.scales.yTemp.min = tempAvg - tempRange;
-  chart.options.scales.yTemp.max = tempAvg + tempRange;
-
-  chart.options.scales.yHum.min = humAvg - humRange;
-  chart.options.scales.yHum.max = humAvg + humRange;
-
-  chart.update();
-}
-
-let chart = new Chart(ctx, {
+/* GRAPH */
+const chart = new Chart(document.getElementById("graphique"), {
   type: "line",
-  data: {
-    labels: [],
-    datasets: [
-      { label:"Temp Int", data:[], yAxisID:'yTemp' },
-      { label:"Temp Ext", data:[], yAxisID:'yTemp' },
-      { label:"Hum Int", data:[], yAxisID:'yHum' },
-      { label:"Hum Ext", data:[], yAxisID:'yHum' }
-    ]
-  },
-  options: {
-    scales: {
-      yTemp: { position: 'left' },
-      yHum: { position: 'right' }
-    },
-    plugins: {
-  legend: {
-    onClick: (e, legendItem, legend) => {
-      const ci = legend.chart;
-      const index = legendItem.datasetIndex;
-
-      // 🔹 appeler le comportement par défaut pour cacher/afficher la courbe
-      Chart.defaults.plugins.legend.onClick(e, legendItem, legend);
-
-      // 🔹 ensuite recalculer l'axe Y pour les datasets visibles
-      updateYAxisZoom(ci,
-        ci.data.datasets[0].data,
-        ci.data.datasets[1].data,
-        ci.data.datasets[2].data,
-        ci.data.datasets[3].data
-      );
-        }
-      }
+  data: { labels: [], datasets: [
+    { label:"Temp Int", data:[], yAxisID:'yTemp' },
+    { label:"Temp Ext", data:[], yAxisID:'yTemp' },
+    { label:"Hum Int", data:[], yAxisID:'yHum' },
+    { label:"Hum Ext", data:[], yAxisID:'yHum' }
+  ]},
+  options:{
+    responsive:true,
+    maintainAspectRatio:false,
+    scales:{
+      yTemp:{ position:'left', suggestedMin:-5, suggestedMax:45 },
+      yHum:{ position:'right', suggestedMin:0, suggestedMax:100, grid:{drawOnChartArea:false} }
     }
   }
 });
 
-/* HISTORIQUE + STATS */
+/* HISTORIQUE */
+onValue(historiqueRef, snap => {
 
-onValue(historiqueRef, async (snapshot) => {
+  let entries = Object.values(snap.val() || {})
+    .sort((a,b)=>a.time-b.time)
+    .slice(-20);
 
-  const data = snapshot.val();
-  if (!data) return;
+  let labels=[], a=[], b=[], c=[], d=[];
 
-  let entries = Object.entries(data);
+  entries.forEach(e => {
 
-  if (entries.length > 20) {
-    const toDelete = entries.slice(0, entries.length - 20);
-    for (let [key] of toDelete) {
-      await remove(ref(database, "historique/" + key));
-    }
-  }
+    if (!e) return;
 
-  entries = entries.slice(-20);
-
-  let labels = [], tI=[], tE=[], hI=[], hE=[];
-
-  entries.forEach(([_, e]) => {
     labels.push(new Date(e.time*1000).toLocaleTimeString());
 
-    tI.push(e.temp_int);
-    tE.push(e.temp_ext);
-    hI.push(e.hum_int);
-    hE.push(e.hum_ext);
+    a.push(e.temp_int);
+    b.push(e.temp_ext);
+    c.push(e.hum_int);
+    d.push(e.hum_ext);
+
   });
 
-  chart.data.labels = labels;
-  chart.data.datasets[0].data = tI;
-  chart.data.datasets[1].data = tE;
-  chart.data.datasets[2].data = hI;
-  chart.data.datasets[3].data = hE;
-  
-updateYAxisZoom(chart, tI, tE, hI, hE);
-
-chart.update();
-  
-  /* 📊 STATS */
-
-  const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
-
-  const tempAvg = avg([...tI, ...tE]);
-  const humAvg = avg([...hI, ...hE]);
-
-  const tempMin = Math.min(...tI, ...tE);
-  const tempMax = Math.max(...tI, ...tE);
-
-  const humMin = Math.min(...hI, ...hE);
-  const humMax = Math.max(...hI, ...hE);
-
-  // 🔥 Écart max autour de la moyenne
-  const tempRange = Math.max(
-    Math.abs(tempAvg - tempMin),
-    Math.abs(tempAvg - tempMax)
-  );
-
-  const humRange = Math.max(
-    Math.abs(humAvg - humMin),
-    Math.abs(humAvg - humMax)
-  );
-
-  // 🔥 Application du zoom centré sur la moyenne
-  chart.options.scales.yTemp.min = tempAvg - tempRange;
-  chart.options.scales.yTemp.max = tempAvg + tempRange;
-
-  chart.options.scales.yHum.min = humAvg - humRange;
-  chart.options.scales.yHum.max = humAvg + humRange;
-
+  chart.data.labels=labels;
+  chart.data.datasets[0].data=a;
+  chart.data.datasets[1].data=b;
+  chart.data.datasets[2].data=c;
+  chart.data.datasets[3].data=d;
   chart.update();
 
-  statsTemp.innerHTML =
-    `Temp Moy: ${avg(tI).toFixed(1)}°C | Min: ${Math.min(...tI)} | Max: ${Math.max(...tI)}`;
-
-  statsHum.innerHTML =
-    `Hum Moy: ${avg(hI).toFixed(1)}% | Min: ${Math.min(...hI)} | Max: ${Math.max(...hI)}`;
-
 });
 
-document.getElementById("applyInterval").addEventListener("click", () => {
+/* SAVE + LIMIT 20 */
+async function saveData(){
 
-  let value = parseInt(document.getElementById("intervalInput").value);
+  if([tI,tE,hI,hE].some(v=>isNaN(v))) return;
 
-  if (isNaN(value) || value < 1000) {
-    alert("Minimum 1000 ms");
-    return;
+  if(tI<-5||tI>45||tE<-5||tE>45||hI<0||hI>100||hE<0||hE>100) return;
+
+  await push(historiqueRef,{
+    time:Math.floor(Date.now()/1000),
+    temp_int:tI,
+    temp_ext:tE,
+    hum_int:hI,
+    hum_ext:hE
+  });
+
+  const snap = await get(historiqueRef);
+  const data = snap.val();
+  if(!data) return;
+
+  let entries = Object.entries(data).sort((a,b)=>a[1].time-b[1].time);
+
+  if(entries.length > 20){
+
+    let toDelete = entries.slice(0, entries.length-20);
+
+    await Promise.all(
+      toDelete.map(([k])=>remove(ref(db,"historique/"+k)))
+    );
   }
+}
 
-  intervalTime = value;
-  startInterval();
+setInterval(saveData, 60000);
 
-  console.log("Nouvel interval :", intervalTime);
-});
-  
 </script>
 
 </body>
