@@ -1,1 +1,378 @@
+<!DOCTYPE html>
+<html lang="fr">
 
+<head>
+<meta charset="UTF-8">
+<title>Station météo</title>
+<link rel="stylesheet" href="style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Station météo</h1>
+
+<div class="ligne">
+<span>Température intérieure</span>
+<div class="valeur" id="temp_int">-- °C</div>
+</div>
+
+<div class="ligne">
+<span>Température extérieure</span>
+<div class="valeur" id="temp_ext">-- °C</div>
+</div>
+
+<div class="ligne">
+<span>Humidité intérieure</span>
+<div class="valeur" id="hum_int">-- %</div>
+</div>
+
+<div class="ligne">
+<span>Humidité extérieure</span>
+<div class="valeur" id="hum_ext">-- %</div>
+</div>
+
+<div class="toggle-container">
+<span>Lampe</span>
+<label class="switch">
+<input type="checkbox" id="lampeToggle">
+<span class="slider"></span>
+</label>
+</div>
+
+<div class="refresh-control">
+  <span>Intervalle (ms)</span>
+  <input type="number" id="intervalInput" value="60000">
+  <button id="applyInterval">Appliquer</button>
+</div>
+  
+<!-- 📊 STATS -->
+<div class="stats">
+<p id="stats_temp"></p>
+<p id="stats_hum"></p>
+</div>
+
+<!-- 📈 GRAPHIQUE -->
+<canvas id="graphique"></canvas>
+
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, onValue, set, get, push, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC30Lc4qGf2pmTkjFRp03vaNJiEJevP1I0",
+  authDomain: "databasemeteo-8efd3.firebaseapp.com",
+  databaseURL: "https://databasemeteo-8efd3-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "databasemeteo-8efd3",
+  storageBucket: "databasemeteo-8efd3.firebasestorage.app",
+  messagingSenderId: "1023251176606",
+  appId: "1:1023251176606:web:b4d36aed476bef52f4af8f",
+};
+
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+
+/* REFERENCES */
+
+const tempIntRef = ref(database, "meteo/interieur/Temp");
+const humIntRef = ref(database, "meteo/interieur/Hum");
+const tempExtRef = ref(database, "meteo/exterieur/Temp");
+const humExtRef = ref(database, "meteo/exterieur/Hum");
+const lampeRef = ref(database, "controle/lampe");
+const historiqueRef = ref(database, "historique");
+
+/* HTML */
+
+const tempInt = document.getElementById("temp_int");
+const tempExt = document.getElementById("temp_ext");
+const humInt = document.getElementById("hum_int");
+const humExt = document.getElementById("hum_ext");
+const lampeToggle = document.getElementById("lampeToggle");
+
+const statsTemp = document.getElementById("stats_temp");
+const statsHum = document.getElementById("stats_hum");
+
+/* VARIABLES */
+
+let currentTempInt, currentTempExt, currentHumInt, currentHumExt;
+
+/* LECTURE TEMPS REEL */
+
+onValue(tempIntRef, s => {
+  currentTempInt = parseFloat(s.val());
+  tempInt.innerHTML = currentTempInt + " °C";
+});
+
+onValue(tempExtRef, s => {
+  currentTempExt = parseFloat(s.val());
+  tempExt.innerHTML = currentTempExt + " °C";
+});
+
+onValue(humIntRef, s => {
+  currentHumInt = parseFloat(s.val());
+  humInt.innerHTML = currentHumInt + " %";
+});
+
+onValue(humExtRef, s => {
+  currentHumExt = parseFloat(s.val());
+  humExt.innerHTML = currentHumExt + " %";
+});
+
+onValue(lampeRef, s => {
+  lampeToggle.checked = s.val();
+});
+
+/* TOGGLE LAMPE */
+
+lampeToggle.addEventListener("change", async () => {
+  const snapshot = await get(lampeRef);
+  set(lampeRef, !snapshot.val());
+});
+
+/* ENREGISTREMENT AUTO */
+
+let intervalTime = 60000;
+let intervalID;
+
+async function saveData(){
+
+  if (
+    isNaN(currentTempInt) ||
+    isNaN(currentTempExt) ||
+    isNaN(currentHumInt) ||
+    isNaN(currentHumExt)
+  ) return;
+
+  if (
+    currentTempInt < -5 || currentTempInt > 40 ||
+    currentTempExt < -5 || currentTempExt > 40 ||
+    currentHumInt < 0 || currentHumInt > 100 ||
+    currentHumExt < 0 || currentHumExt > 100
+  ) return;
+
+  // 🔥 AJOUT
+  await push(historiqueRef, {
+    time: Math.floor(Date.now()/1000),
+    temp_int: currentTempInt,
+    temp_ext: currentTempExt,
+    hum_int: currentHumInt,
+    hum_ext: currentHumExt
+  });
+
+  // 🔥 NETTOYAGE (20 max)
+  const snap = await get(historiqueRef);
+  const data = snap.val();
+
+  if (!data) return;
+
+  let entries = Object.entries(data)
+    .sort((a,b)=>a[1].time - b[1].time);
+
+  if (entries.length > 20) {
+
+    let toDelete = entries.slice(0, entries.length - 20);
+
+    await Promise.all(
+      toDelete.map(([key]) =>
+        remove(ref(database, "historique/" + key))
+      )
+    );
+
+    console.log("Anciennes valeurs supprimées");
+  }
+}
+
+function startInterval(){
+  if(intervalID) clearInterval(intervalID);
+  intervalID = setInterval(saveData, intervalTime);
+}
+
+startInterval();
+
+/* GRAPHIQUE */
+
+const ctx = document.getElementById("graphique").getContext("2d");
+
+// fonction moyenne
+const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
+
+// fonction pour recalculer min/max dynamiques sur les datasets visibles
+function updateYAxisZoom(chart, tI, tE, hI, hE) {
+  let visibleTemp = [];
+  let visibleHum = [];
+
+  if(chart.isDatasetVisible(0)) visibleTemp.push(...tI);
+  if(chart.isDatasetVisible(1)) visibleTemp.push(...tE);
+  if(chart.isDatasetVisible(2)) visibleHum.push(...hI);
+  if(chart.isDatasetVisible(3)) visibleHum.push(...hE);
+
+  // sécurité si rien n'est visible
+  if(visibleTemp.length === 0) visibleTemp = [0];
+  if(visibleHum.length === 0) visibleHum = [0];
+
+  // moyenne et min/max
+  const tempAvg = avg(visibleTemp);
+  const humAvg = avg(visibleHum);
+
+  const tempMin = Math.min(...visibleTemp);
+  const tempMax = Math.max(...visibleTemp);
+  const humMin = Math.min(...visibleHum);
+  const humMax = Math.max(...visibleHum);
+
+  const tempRange = Math.max(Math.abs(tempAvg-tempMin), Math.abs(tempAvg-tempMax));
+  const humRange = Math.max(Math.abs(humAvg-humMin), Math.abs(humAvg-humMax));
+
+  // appliquer zoom centré
+  chart.options.scales.yTemp.min = tempAvg - tempRange;
+  chart.options.scales.yTemp.max = tempAvg + tempRange;
+
+  chart.options.scales.yHum.min = humAvg - humRange;
+  chart.options.scales.yHum.max = humAvg + humRange;
+
+  chart.update();
+}
+
+let chart = new Chart(ctx, {
+  type: "line",
+  data: {
+    labels: [],
+    datasets: [
+      { label:"Temp Int", data:[], yAxisID:'yTemp' },
+      { label:"Temp Ext", data:[], yAxisID:'yTemp' },
+      { label:"Hum Int", data:[], yAxisID:'yHum' },
+      { label:"Hum Ext", data:[], yAxisID:'yHum' }
+    ]
+  },
+  options: {
+    scales: {
+      yTemp: { position: 'left' },
+      yHum: { position: 'right' }
+    },
+    plugins: {
+  legend: {
+    onClick: (e, legendItem, legend) => {
+      const ci = legend.chart;
+      const index = legendItem.datasetIndex;
+
+      // 🔹 appeler le comportement par défaut pour cacher/afficher la courbe
+      Chart.defaults.plugins.legend.onClick(e, legendItem, legend);
+
+      // 🔹 ensuite recalculer l'axe Y pour les datasets visibles
+      updateYAxisZoom(ci,
+        ci.data.datasets[0].data,
+        ci.data.datasets[1].data,
+        ci.data.datasets[2].data,
+        ci.data.datasets[3].data
+      );
+        }
+      }
+    }
+  }
+});
+
+/* HISTORIQUE + STATS */
+
+onValue(historiqueRef, async (snapshot) => {
+
+  const data = snapshot.val();
+  if (!data) return;
+
+  let entries = Object.entries(data);
+
+  if (entries.length > 20) {
+    const toDelete = entries.slice(0, entries.length - 20);
+    for (let [key] of toDelete) {
+      await remove(ref(database, "historique/" + key));
+    }
+  }
+
+  entries = entries.slice(-20);
+
+  let labels = [], tI=[], tE=[], hI=[], hE=[];
+
+  entries.forEach(([_, e]) => {
+    labels.push(new Date(e.time*1000).toLocaleTimeString());
+
+    tI.push(e.temp_int);
+    tE.push(e.temp_ext);
+    hI.push(e.hum_int);
+    hE.push(e.hum_ext);
+  });
+
+  chart.data.labels = labels;
+  chart.data.datasets[0].data = tI;
+  chart.data.datasets[1].data = tE;
+  chart.data.datasets[2].data = hI;
+  chart.data.datasets[3].data = hE;
+  
+updateYAxisZoom(chart, tI, tE, hI, hE);
+
+chart.update();
+  
+  /* 📊 STATS */
+
+  const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
+
+  const tempAvg = avg([...tI, ...tE]);
+  const humAvg = avg([...hI, ...hE]);
+
+  const tempMin = Math.min(...tI, ...tE);
+  const tempMax = Math.max(...tI, ...tE);
+
+  const humMin = Math.min(...hI, ...hE);
+  const humMax = Math.max(...hI, ...hE);
+
+  // 🔥 Écart max autour de la moyenne
+  const tempRange = Math.max(
+    Math.abs(tempAvg - tempMin),
+    Math.abs(tempAvg - tempMax)
+  );
+
+  const humRange = Math.max(
+    Math.abs(humAvg - humMin),
+    Math.abs(humAvg - humMax)
+  );
+
+  // 🔥 Application du zoom centré sur la moyenne
+  chart.options.scales.yTemp.min = tempAvg - tempRange;
+  chart.options.scales.yTemp.max = tempAvg + tempRange;
+
+  chart.options.scales.yHum.min = humAvg - humRange;
+  chart.options.scales.yHum.max = humAvg + humRange;
+
+  chart.update();
+
+  statsTemp.innerHTML =
+    `Temp Moy: ${avg(tI).toFixed(1)}°C | Min: ${Math.min(...tI)} | Max: ${Math.max(...tI)}`;
+
+  statsHum.innerHTML =
+    `Hum Moy: ${avg(hI).toFixed(1)}% | Min: ${Math.min(...hI)} | Max: ${Math.max(...hI)}`;
+
+});
+
+document.getElementById("applyInterval").addEventListener("click", () => {
+
+  let value = parseInt(document.getElementById("intervalInput").value);
+
+  if (isNaN(value) || value < 1000) {
+    alert("Minimum 1000 ms");
+    return;
+  }
+
+  intervalTime = value;
+  startInterval();
+
+  console.log("Nouvel interval :", intervalTime);
+});
+  
+</script>
+
+</body>
+</html>
