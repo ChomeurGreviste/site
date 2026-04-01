@@ -160,7 +160,7 @@ document.getElementById("logoutBtn").onclick = () => {
 };
 
 document.getElementById("historiqueBtn").onclick = () => {
-  alert("Page historique avancé à venir");
+  window.location.href = "appplus.html";
 };
 
 /* REFERENCES */
@@ -170,7 +170,7 @@ const tempExtRef = ref(database, "meteo/exterieur/Temp");
 const humExtRef = ref(database, "meteo/exterieur/Hum");
 const lampeRef = ref(database, "controle/lampe");
 const historiqueRef = ref(database, "historique");
-
+const historiquePlusRef = ref(database, "historiqueplus");
 /* HTML */
 const tempInt = document.getElementById("temp_int");
 const tempExt = document.getElementById("temp_ext");
@@ -236,6 +236,13 @@ async function saveData(){
   ) return;
 
   await push(historiqueRef, {
+    time: Math.floor(Date.now()/1000),
+    temp_int: currentTempInt,
+    temp_ext: currentTempExt,
+    hum_int: currentHumInt,
+    hum_ext: currentHumExt
+  });
+    await push(historiquePlusRef,{
     time: Math.floor(Date.now()/1000),
     temp_int: currentTempInt,
     temp_ext: currentTempExt,
