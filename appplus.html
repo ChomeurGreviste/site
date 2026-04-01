@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+<meta charset="UTF-8">
+<title>Historique avancé</title>
+
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+button {
+  padding: 8px 12px;
+  margin-left: 5px;
+  cursor: pointer;
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <h1>Historique avancé</h1>
+
+  <div>
+    <button id="backBtn">⬅ Retour</button>
+    <button id="logoutBtn">🚪 Déconnexion</button>
+  </div>
+</div>
+
+<!-- CONTROLES -->
+<div class="controls">
+  <span>📅 Date :</span>
+  <input type="date" id="datePicker">
+  <button id="loadDataBtn">Afficher</button>
+</div>
+
+<canvas id="graphique"></canvas>
+
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, onValue, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+/* FIREBASE */
+const firebaseConfig = {
+  apiKey: "AIzaSyC30Lc4qGf2pmTkjFRp03vaNJiEJevP1I0",
+  authDomain: "databasemeteo-8efd3.firebaseapp.com",
+  databaseURL: "https://databasemeteo-8efd3-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "databasemeteo-8efd3",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const auth = getAuth(app);
+
+/* NAVIGATION */
+document.getElementById("backBtn").onclick = () => {
+  window.location.href = "app.html";
+};
+
+document.getElementById("logoutBtn").onclick = () => {
+  signOut(auth).then(() => {
+    window.location.href = "index.html";
+  });
+};
+
+/* REFERENCES */
+const historiquePlusRef = ref(db, "historiqueplus");
+
+/* GRAPH */
+const chart = new Chart(document.getElementById("graphique"), {
+  type: "line",
+  data: {
+    labels: [],
+    datasets: [
+      { label:"Temp Int", data:[] },
+      { label:"Temp Ext", data:[] },
+      { label:"Hum Int", data:[] },
+      { label:"Hum Ext", data:[] }
+    ]
+  }
+});
+
+/* CHARGEMENT DES DONNÉES PAR DATE */
+document.getElementById("loadDataBtn").onclick = async () => {
+
+  const selectedDate = document.getElementById("datePicker").value;
+  if (!selectedDate) {
+    alert("Choisir une date");
+    return;
+  }
+
+  const snapshot = await get(historiquePlusRef);
+  const data = snapshot.val();
+
+  if (!data) return;
+
+  let labels = [], tI=[], tE=[], hI=[], hE=[];
+
+  Object.values(data).forEach(e => {
+
+    const date = new Date(e.time * 1000);
+
+    // filtrer par date (YYYY-MM-DD)
+    const dateStr = date.toISOString().split("T")[0];
+
+    if (dateStr === selectedDate) {
+
+      labels.push(date.toLocaleTimeString());
+
+      tI.push(e.temp_int);
+      tE.push(e.temp_ext);
+      hI.push(e.hum_int);
+      hE.push(e.hum_ext);
+    }
+  });
+
+  chart.data.labels = labels;
+  chart.data.datasets[0].data = tI;
+  chart.data.datasets[1].data = tE;
+  chart.data.datasets[2].data = hI;
+  chart.data.datasets[3].data = hE;
+
+  chart.update();
+};
+
+</script>
+
+</body>
+</html>
