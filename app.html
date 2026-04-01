@@ -182,8 +182,6 @@ const chart = new Chart(document.getElementById("graphique"), {
     { label:"Hum Ext", data:[], yAxisID:'yHum' }
   ]},
   options:{
-    responsive:true,
-    maintainAspectRatio:false,
     scales:{
       yTemp:{ position:'left', suggestedMin:-5, suggestedMax:45 },
       yHum:{ position:'right', suggestedMin:0, suggestedMax:100, grid:{drawOnChartArea:false} }
