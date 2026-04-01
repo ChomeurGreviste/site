@@ -59,26 +59,40 @@
 
 <div class="container">
 
-<!-- 🔝 TOP BAR -->
+<!-- 🔝 TOP BAR + MENU -->
 <div class="topbar">
-<h1>Station météo</h1>
+  <h1>Station météo</h1>
 
-<div class="menu">
-<div class="menu-button" id="menuBtn">☰</div>
+  <div class="menu">
+    <div class="menu-button" id="menuBtn">☰</div>
 
-<div class="menu-content" id="menuContent">
-<button id="historiqueBtn">📊 Historique avancé</button>
-<button id="logoutBtn">🚪 Déconnexion</button>
+    <div class="menu-content" id="menuContent">
+      <button id="historiqueBtn">📊 Historique avancé</button>
+      <button id="logoutBtn">🚪 Déconnexion</button>
+    </div>
+  </div>
 </div>
 
-</div>
+<!-- DONNÉES -->
+<div class="ligne">
+<span>Température intérieure</span>
+<div class="valeur" id="temp_int">-- °C</div>
 </div>
 
-<!-- 📊 DONNÉES -->
-<div class="ligne"><span>Température intérieure</span><div class="valeur" id="temp_int">--</div></div>
-<div class="ligne"><span>Température extérieure</span><div class="valeur" id="temp_ext">--</div></div>
-<div class="ligne"><span>Humidité intérieure</span><div class="valeur" id="hum_int">--</div></div>
-<div class="ligne"><span>Humidité extérieure</span><div class="valeur" id="hum_ext">--</div></div>
+<div class="ligne">
+<span>Température extérieure</span>
+<div class="valeur" id="temp_ext">-- °C</div>
+</div>
+
+<div class="ligne">
+<span>Humidité intérieure</span>
+<div class="valeur" id="hum_int">-- %</div>
+</div>
+
+<div class="ligne">
+<span>Humidité extérieure</span>
+<div class="valeur" id="hum_ext">-- %</div>
+</div>
 
 <div class="toggle-container">
 <span>Lampe</span>
@@ -86,6 +100,12 @@
 <input type="checkbox" id="lampeToggle">
 <span class="slider"></span>
 </label>
+</div>
+
+<div class="refresh-control">
+  <span>Intervalle (ms)</span>
+  <input type="number" id="intervalInput" value="60000">
+  <button id="applyInterval">Appliquer</button>
 </div>
 
 <div class="stats">
@@ -104,17 +124,21 @@ import { getDatabase, ref, onValue, set, get, push, remove } from "https://www.g
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 /* FIREBASE */
-const app = initializeApp({
+const firebaseConfig = {
   apiKey: "AIzaSyC30Lc4qGf2pmTkjFRp03vaNJiEJevP1I0",
   authDomain: "databasemeteo-8efd3.firebaseapp.com",
   databaseURL: "https://databasemeteo-8efd3-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "databasemeteo-8efd3"
-});
+  projectId: "databasemeteo-8efd3",
+  storageBucket: "databasemeteo-8efd3.firebasestorage.app",
+  messagingSenderId: "1023251176606",
+  appId: "1:1023251176606:web:b4d36aed476bef52f4af8f",
+};
 
-const db = getDatabase(app);
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
 const auth = getAuth(app);
 
-/* 🔐 PROTECTION PAGE */
+/* 🔐 PROTECTION */
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     window.location.href = "index.html";
@@ -140,12 +164,12 @@ document.getElementById("historiqueBtn").onclick = () => {
 };
 
 /* REFERENCES */
-const tempIntRef = ref(db, "meteo/interieur/Temp");
-const humIntRef = ref(db, "meteo/interieur/Hum");
-const tempExtRef = ref(db, "meteo/exterieur/Temp");
-const humExtRef = ref(db, "meteo/exterieur/Hum");
-const lampeRef = ref(db, "controle/lampe");
-const historiqueRef = ref(db, "historique");
+const tempIntRef = ref(database, "meteo/interieur/Temp");
+const humIntRef = ref(database, "meteo/interieur/Hum");
+const tempExtRef = ref(database, "meteo/exterieur/Temp");
+const humExtRef = ref(database, "meteo/exterieur/Hum");
+const lampeRef = ref(database, "controle/lampe");
+const historiqueRef = ref(database, "historique");
 
 /* HTML */
 const tempInt = document.getElementById("temp_int");
@@ -158,100 +182,166 @@ const statsTemp = document.getElementById("stats_temp");
 const statsHum = document.getElementById("stats_hum");
 
 /* VARIABLES */
-let tI, tE, hI, hE;
+let currentTempInt, currentTempExt, currentHumInt, currentHumExt;
 
-/* TEMPS REEL */
-onValue(tempIntRef, s => { tI=parseFloat(s.val()); tempInt.innerHTML=tI+" °C"; });
-onValue(tempExtRef, s => { tE=parseFloat(s.val()); tempExt.innerHTML=tE+" °C"; });
-onValue(humIntRef, s => { hI=parseFloat(s.val()); humInt.innerHTML=hI+" %"; });
-onValue(humExtRef, s => { hE=parseFloat(s.val()); humExt.innerHTML=hE+" %"; });
-onValue(lampeRef, s => lampeToggle.checked=s.val());
-
-lampeToggle.addEventListener("change", async ()=>{
-  const snap = await get(lampeRef);
-  set(lampeRef, !snap.val());
+/* TEMPS RÉEL */
+onValue(tempIntRef, s => {
+  currentTempInt = parseFloat(s.val());
+  tempInt.innerHTML = currentTempInt + " °C";
 });
 
-/* GRAPH */
-const chart = new Chart(document.getElementById("graphique"), {
+onValue(tempExtRef, s => {
+  currentTempExt = parseFloat(s.val());
+  tempExt.innerHTML = currentTempExt + " °C";
+});
+
+onValue(humIntRef, s => {
+  currentHumInt = parseFloat(s.val());
+  humInt.innerHTML = currentHumInt + " %";
+});
+
+onValue(humExtRef, s => {
+  currentHumExt = parseFloat(s.val());
+  humExt.innerHTML = currentHumExt + " %";
+});
+
+onValue(lampeRef, s => {
+  lampeToggle.checked = s.val();
+});
+
+/* TOGGLE LAMPE */
+lampeToggle.addEventListener("change", async () => {
+  const snapshot = await get(lampeRef);
+  set(lampeRef, !snapshot.val());
+});
+
+/* INTERVALLE D’ENREGISTREMENT */
+let intervalTime = 60000;
+let intervalID;
+
+async function saveData(){
+
+  if (
+    isNaN(currentTempInt) ||
+    isNaN(currentTempExt) ||
+    isNaN(currentHumInt) ||
+    isNaN(currentHumExt)
+  ) return;
+
+  if (
+    currentTempInt < -5 || currentTempInt > 40 ||
+    currentTempExt < -5 || currentTempExt > 40 ||
+    currentHumInt < 0 || currentHumInt > 100 ||
+    currentHumExt < 0 || currentHumExt > 100
+  ) return;
+
+  await push(historiqueRef, {
+    time: Math.floor(Date.now()/1000),
+    temp_int: currentTempInt,
+    temp_ext: currentTempExt,
+    hum_int: currentHumInt,
+    hum_ext: currentHumExt
+  });
+
+  const snap = await get(historiqueRef);
+  const data = snap.val();
+
+  if (!data) return;
+
+  let entries = Object.entries(data)
+    .sort((a,b)=>a[1].time - b[1].time);
+
+  if (entries.length > 20) {
+    let toDelete = entries.slice(0, entries.length - 20);
+
+    await Promise.all(
+      toDelete.map(([key]) =>
+        remove(ref(database, "historique/" + key))
+      )
+    );
+  }
+}
+
+function startInterval(){
+  if(intervalID) clearInterval(intervalID);
+  intervalID = setInterval(saveData, intervalTime);
+}
+
+startInterval();
+
+/* GRAPHIQUE */
+const ctx = document.getElementById("graphique").getContext("2d");
+
+const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
+
+let chart = new Chart(ctx, {
   type: "line",
-  data: { labels: [], datasets: [
-    { label:"Temp Int", data:[], yAxisID:'yTemp' },
-    { label:"Temp Ext", data:[], yAxisID:'yTemp' },
-    { label:"Hum Int", data:[], yAxisID:'yHum' },
-    { label:"Hum Ext", data:[], yAxisID:'yHum' }
-  ]},
-  options:{
-    scales:{
-      yTemp:{ position:'left', suggestedMin:-5, suggestedMax:45 },
-      yHum:{ position:'right', suggestedMin:0, suggestedMax:100, grid:{drawOnChartArea:false} }
+  data: {
+    labels: [],
+    datasets: [
+      { label:"Temp Int", data:[], yAxisID:'yTemp' },
+      { label:"Temp Ext", data:[], yAxisID:'yTemp' },
+      { label:"Hum Int", data:[], yAxisID:'yHum' },
+      { label:"Hum Ext", data:[], yAxisID:'yHum' }
+    ]
+  },
+  options: {
+    scales: {
+      yTemp: { position: 'left' },
+      yHum: { position: 'right' }
     }
   }
 });
 
 /* HISTORIQUE */
-onValue(historiqueRef, snap => {
+onValue(historiqueRef, async (snapshot) => {
 
-  let entries = Object.values(snap.val() || {})
-    .sort((a,b)=>a.time-b.time)
-    .slice(-20);
+  const data = snapshot.val();
+  if (!data) return;
 
-  let labels=[], a=[], b=[], c=[], d=[];
+  let entries = Object.entries(data);
 
-  entries.forEach(e => {
+  entries = entries.slice(-20);
 
-    if (!e) return;
+  let labels = [], tI=[], tE=[], hI=[], hE=[];
 
+  entries.forEach(([_, e]) => {
     labels.push(new Date(e.time*1000).toLocaleTimeString());
 
-    a.push(e.temp_int);
-    b.push(e.temp_ext);
-    c.push(e.hum_int);
-    d.push(e.hum_ext);
-
+    tI.push(e.temp_int);
+    tE.push(e.temp_ext);
+    hI.push(e.hum_int);
+    hE.push(e.hum_ext);
   });
 
-  chart.data.labels=labels;
-  chart.data.datasets[0].data=a;
-  chart.data.datasets[1].data=b;
-  chart.data.datasets[2].data=c;
-  chart.data.datasets[3].data=d;
+  chart.data.labels = labels;
+  chart.data.datasets[0].data = tI;
+  chart.data.datasets[1].data = tE;
+  chart.data.datasets[2].data = hI;
+  chart.data.datasets[3].data = hE;
+
   chart.update();
 
+  statsTemp.innerHTML =
+    `Temp Moy: ${avg(tI).toFixed(1)}°C | Min: ${Math.min(...tI)} | Max: ${Math.max(...tI)}`;
+
+  statsHum.innerHTML =
+    `Hum Moy: ${avg(hI).toFixed(1)}% | Min: ${Math.min(...hI)} | Max: ${Math.max(...hI)}`;
 });
 
-/* SAVE + LIMIT 20 */
-async function saveData(){
+/* INTERVAL UI */
+document.getElementById("applyInterval").addEventListener("click", () => {
 
-  if([tI,tE,hI,hE].some(v=>isNaN(v))) return;
+  let value = parseInt(document.getElementById("intervalInput").value);
 
-  if(tI<-5||tI>45||tE<-5||tE>45||hI<0||hI>100||hE<0||hE>100) return;
-
-  await push(historiqueRef,{
-    time:Math.floor(Date.now()/1000),
-    temp_int:tI,
-    temp_ext:tE,
-    hum_int:hI,
-    hum_ext:hE
-  });
-
-  const snap = await get(historiqueRef);
-  const data = snap.val();
-  if(!data) return;
-
-  let entries = Object.entries(data).sort((a,b)=>a[1].time-b[1].time);
-
-  if(entries.length > 20){
-
-    let toDelete = entries.slice(0, entries.length-20);
-
-    await Promise.all(
-      toDelete.map(([k])=>remove(ref(db,"historique/"+k)))
-    );
+  if (isNaN(value) || value < 1000) {
+    alert("Minimum 1000 ms");
+    return;
   }
-}
 
-setInterval(saveData, 60000);
+  intervalTime = value;
+  startInterval();
+});
 
 </script>
 
